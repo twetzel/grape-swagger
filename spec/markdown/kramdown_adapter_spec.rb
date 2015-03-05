@@ -1,6 +1,7 @@
 require 'spec_helper'
 
 describe GrapeSwagger::Markdown::KramdownAdapter do
+
   context 'initialization' do
     it 'uses GFM as default input and disable coderay' do
       adapter = GrapeSwagger::Markdown::KramdownAdapter.new

@@ -1,24 +1,3 @@
-### Next Release
-
-#### Features
-
-* [#217](https://github.com/tim-vandecasteele/grape-swagger/pull/217): Support Array of entities for proper rendering of grape-entity input dependencies - [@swistaczek](https://github.com/swistaczek).
-* [#214](https://github.com/tim-vandecasteele/grape-swagger/pull/214): Allow anything that responds to `call` to be used in `:hidden` - [@zbelzer](https://github.com/zbelzer).
-* [#196](https://github.com/tim-vandecasteele/grape-swagger/pull/196): If `:type` is omitted, see if it's available in `:using` - [@jhollinger](https://github.com/jhollinger).
-* [#200](https://github.com/tim-vandecasteele/grape-swagger/pull/200): Treat `type: Symbol` as string form parameter - [@ypresto](https://github.com/ypresto).
-* [#207](https://github.com/tim-vandecasteele/grape-swagger/pull/207): Support grape `mutually_exclusive` - [@mintuhouse](https://github.com/mintuhouse).
-* [#220](https://github.com/tim-vandecasteele/grape-swagger/pull/220): Support standalone appearance of namespace routes with a custom name instead of forced nesting - [@croeck](https://github.com/croeck).
-
-#### Fixes
-
-* [#221](https://github.com/tim-vandecasteele/grape-swagger/pull/221): Fixed group parameters' name with type Array - [@u2](https://github.com/u2).
-* [#211](https://github.com/tim-vandecasteele/grape-swagger/pull/211): Fixed the dependency, just `require 'grape'` - [@u2](https://github.com/u2).
-* [#210](https://github.com/tim-vandecasteele/grape-swagger/pull/210): Fixed the range `:values` option, now exposed as `enum` parameters - [@u2](https://github.com/u2).
-* [#208](https://github.com/tim-vandecasteele/grape-swagger/pull/208): Fixed `Float` parameters, exposed as Swagger `float` types - [@u2](https://github.com/u2).
-* [#216](https://github.com/tim-vandecasteele/grape-swagger/pull/216), [#192](https://github.com/tim-vandecasteele/grape-swagger/issues/192), [#189](https://github.com/tim-vandecasteele/grape-swagger/issues/189): Fixed API route paths matching for root endpoints with `grape ~> 0.10.0`, specific `format` and `:path` versioning - [@dm1try](https://github.com/dm1try), [@minch](https://github.com/minch).
-
-* Your contribution here.
-
 ### 0.9.0 (December 19, 2014)
 
 * [#91](https://github.com/tim-vandecasteele/grape-swagger/issues/91): Fixed empty field for group parameters' name with type hash or Array - [@dukedave](https://github.com/dukedave).

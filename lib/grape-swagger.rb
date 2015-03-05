@@ -1,4 +1,3 @@
-require 'grape'
 require 'grape-swagger/version'
 require 'grape-swagger/errors'
 require 'grape-swagger/markdown'
@@ -8,7 +7,7 @@ require 'grape-swagger/markdown/redcarpet_adapter'
 module Grape
   class API
     class << self
-      attr_reader :combined_routes, :combined_namespaces, :combined_namespace_routes, :combined_namespace_identifiers
+      attr_reader :combined_routes, :combined_namespaces
 
       def add_swagger_documentation(options = {})
         documentation_class = create_documentation_class
@@ -21,7 +20,7 @@ module Grape
           route_path = route.route_path
           route_match = route_path.split(/^.*?#{route.route_prefix.to_s}/).last
           next unless route_match
-          route_match = route_match.match('\/([\w|-]*?)[\.\/\(]') || route_match.match('\/([\w|-]*)$')
+          route_match = route_match.match('\/([\w|-]*?)[\.\/\(]') || route_match.match('\/([\w|-]*)')
           next unless route_match
           resource = route_match.captures.first
           next if resource.empty?
@@ -33,13 +32,6 @@ module Grape
 
         @combined_namespaces = {}
         combine_namespaces(self)
-
-        @combined_namespace_routes = {}
-        @combined_namespace_identifiers = {}
-        combine_namespace_routes(@combined_namespaces)
-
-        exclusive_route_keys = @combined_routes.keys - @combined_namespaces.keys
-        exclusive_route_keys.each { |key| @combined_namespace_routes[key] = @combined_routes[key] }
         documentation_class
       end
 
@@ -52,110 +44,10 @@ module Grape
                else
                  endpoint.settings.stack.last[:namespace]
                end
-          # use the full namespace here (not the latest level only)
-          # and strip leading slash
-          @combined_namespaces[endpoint.namespace.sub(/^\//, '')] = ns if ns
+          @combined_namespaces[ns.space] = ns if ns
 
           combine_namespaces(endpoint.options[:app]) if endpoint.options[:app]
         end
-      end
-
-      def combine_namespace_routes(namespaces)
-        # iterate over each single namespace
-        namespaces.each do |name, namespace|
-          # get the parent route for the namespace
-          parent_route_name = name.match(%r{^/?([^/]*).*$})[1]
-          parent_route = @combined_routes[parent_route_name]
-          # fetch all routes that are within the current namespace
-          namespace_routes = parent_route.collect do |route|
-            route if (route.route_path.start_with?("/#{name}") || route.route_path.start_with?("/:version/#{name}")) &&
-                     (route.instance_variable_get(:@options)[:namespace] == "/#{name}" || route.instance_variable_get(:@options)[:namespace] == "/:version/#{name}")
-          end.compact
-
-          if namespace.options.key?(:swagger) && namespace.options[:swagger][:nested] == false
-            # Namespace shall appear as standalone resource, use specified name or use normalized path as name
-            if namespace.options[:swagger].key?(:name)
-              identifier = namespace.options[:swagger][:name].gsub(/ /, '-')
-            else
-              identifier = name.gsub(/_/, '-').gsub(/\//, '_')
-            end
-            @combined_namespace_identifiers[identifier] = name
-            @combined_namespace_routes[identifier] = namespace_routes
-
-            # get all nested namespaces below the current namespace
-            sub_namespaces = standalone_sub_namespaces(name, namespaces)
-            # convert namespace to route names
-            sub_ns_paths = sub_namespaces.collect { |ns_name, _| "/#{ns_name}" }
-            sub_ns_paths_versioned = sub_namespaces.collect { |ns_name, _| "/:version/#{ns_name}" }
-            # get the actual route definitions for the namespace path names
-            sub_routes = parent_route.collect do |route|
-              route if sub_ns_paths.include?(route.instance_variable_get(:@options)[:namespace]) || sub_ns_paths_versioned.include?(route.instance_variable_get(:@options)[:namespace])
-            end.compact
-            # add all determined routes of the sub namespaces to standalone resource
-            @combined_namespace_routes[identifier].push(*sub_routes)
-          else
-            # default case when not explicitly specified or nested == true
-            standalone_namespaces = namespaces.reject { |_, ns| !ns.options.key?(:swagger) || !ns.options[:swagger].key?(:nested) || ns.options[:swagger][:nested] != false }
-            parent_standalone_namespaces = standalone_namespaces.reject { |ns_name, _| !name.start_with?(ns_name) }
-            # add only to the main route if the namespace is not within any other namespace appearing as standalone resource
-            if parent_standalone_namespaces.empty?
-              # default option, append namespace methods to parent route
-              @combined_namespace_routes[parent_route_name] = [] unless @combined_namespace_routes.key?(parent_route_name)
-              @combined_namespace_routes[parent_route_name].push(*namespace_routes)
-            end
-          end
-        end
-      end
-
-      def standalone_sub_namespaces(name, namespaces)
-        # assign all nested namespace routes to this resource, too
-        # (unless they are assigned to another standalone namespace themselves)
-        sub_namespaces = {}
-        # fetch all namespaces that are children of the current namespace
-        namespaces.each { |ns_name, ns| sub_namespaces[ns_name] = ns if ns_name.start_with?(name) && ns_name != name }
-        # remove the sub namespaces if they are assigned to another standalone namespace themselves
-        sub_namespaces.each do |sub_name, sub_ns|
-          # skip if sub_ns is standalone, too
-          next unless sub_ns.options.key?(:swagger) && sub_ns.options[:swagger][:nested] == false
-          # remove all namespaces that are nested below this standalone sub_ns
-          sub_namespaces.each { |sub_sub_name, _| sub_namespaces.delete(sub_sub_name) if sub_sub_name.start_with?(sub_name) }
-        end
-        sub_namespaces
-      end
-
-      def get_non_nested_params(params)
-        # Duplicate the params as we are going to modify them
-        dup_params = params.each_with_object(Hash.new) do |(param, value), dparams|
-          dparams[param] = value.dup
-        end
-
-        dup_params.reject do |param, value|
-          is_nested_param = /^#{ Regexp.quote param }\[.+\]$/
-          0 < dup_params.count do |p, _|
-            match = p.match(is_nested_param)
-            dup_params[p][:required] = false if match && !value[:required]
-            match
-          end
-        end
-      end
-
-      def parse_array_params(params)
-        modified_params = {}
-        array_param = nil
-        params.each_key do |k|
-          if params[k].is_a?(Hash) && params[k][:type] == 'Array'
-            array_param = k
-          else
-            new_key = k
-            unless array_param.nil?
-              if k.to_s.start_with?(array_param.to_s + '[')
-                new_key = array_param.to_s + '[]' + k.to_s.split(array_param)[1]
-              end
-            end
-            modified_params[new_key] = params[k]
-          end
-        end
-        modified_params
       end
 
       def create_documentation_class
@@ -172,9 +64,10 @@ module Grape
             def parse_params(params, path, method)
               params ||= []
 
-              parsed_array_params = parse_array_params(params)
-
-              non_nested_parent_params = get_non_nested_params(parsed_array_params)
+              non_nested_parent_params = params.reject do |param, _|
+                is_nested_param = /^#{ Regexp.quote param }\[.+\]$/
+                params.keys.any? { |p| p.match is_nested_param }
+              end
 
               non_nested_parent_params.map do |param, value|
                 items = {}
@@ -187,7 +80,7 @@ module Grape
                                   'File'
                                 when 'Virtus::Attribute::Boolean'
                                   'boolean'
-                                when 'Boolean', 'Date', 'Integer', 'String', 'Float'
+                                when 'Boolean', 'Date', 'Integer', 'String'
                                   raw_data_type.downcase
                                 when 'BigDecimal'
                                   'long'
@@ -195,8 +88,6 @@ module Grape
                                   'dateTime'
                                 when 'Numeric'
                                   'double'
-                                when 'Symbol'
-                                  'string'
                                 else
                                   @@documentation_class.parse_entity_name(raw_data_type)
                                 end
@@ -205,7 +96,6 @@ module Grape
                 default_value = value.is_a?(Hash) ? value[:default] : nil
                 is_array      = value.is_a?(Hash) ? (value[:is_array] || false) : false
                 enum_values   = value.is_a?(Hash) ? value[:values] : nil
-                enum_values   = enum_values.to_a if enum_values && enum_values.is_a?(Range)
                 enum_values   = enum_values.call if enum_values && enum_values.is_a?(Proc)
 
                 if value.is_a?(Hash) && value.key?(:param_type)
@@ -330,17 +220,11 @@ module Grape
 
                   required << property_name.to_s if p.delete(:required)
 
-                  type = if p[:type]
-                           p.delete(:type)
-                         elsif (entity = model.exposures[property_name][:using])
-                           parse_entity_name(entity)
-                         end
-
                   if p.delete(:is_array)
-                    p[:items] = generate_typeref(type)
+                    p[:items] = generate_typeref(p[:type])
                     p[:type] = 'array'
                   else
-                    p.merge! generate_typeref(type)
+                    p.merge! generate_typeref(p.delete(:type))
                   end
 
                   # rename Grape Entity's "desc" to "description"
@@ -355,6 +239,7 @@ module Grape
                   end
 
                   properties[property_name] = p
+
                 end
 
                 result[name] = {
@@ -487,21 +372,20 @@ module Grape
                 header['Access-Control-Allow-Origin']   = '*'
                 header['Access-Control-Request-Method'] = '*'
 
+                routes = target_class.combined_routes
                 namespaces = target_class.combined_namespaces
-                namespace_routes = target_class.combined_namespace_routes
 
                 if @@hide_documentation_path
-                  namespace_routes.reject! { |route, _value| "/#{route}/".index(@@documentation_class.parse_path(@@mount_path, nil) << '/') == 0 }
+                  routes.reject! { |route, _value| "/#{route}/".index(@@documentation_class.parse_path(@@mount_path, nil) << '/') == 0 }
                 end
 
-                namespace_routes_array = namespace_routes.keys.map do |local_route|
-                  next if namespace_routes[local_route].map(&:route_hidden).all? { |value| value.respond_to?(:call) ? value.call : value }
+                routes_array = routes.keys.map do |local_route|
+                  next if routes[local_route].all?(&:route_hidden)
 
                   url_format  = '.{format}' unless @@hide_format
 
-                  original_namespace_name = target_class.combined_namespace_identifiers.key?(local_route) ? target_class.combined_namespace_identifiers[local_route] : local_route
-                  description = namespaces[original_namespace_name] && namespaces[original_namespace_name].options[:desc]
-                  description ||= "Operations about #{original_namespace_name.pluralize}"
+                  description = namespaces[local_route] && namespaces[local_route].options[:desc]
+                  description ||= "Operations about #{local_route.pluralize}"
 
                   {
                     path: "/#{local_route}#{url_format}",
@@ -513,7 +397,7 @@ module Grape
                   apiVersion:     api_version,
                   swaggerVersion: '1.2',
                   produces:       @@documentation_class.content_types_for(target_class),
-                  apis:           namespace_routes_array,
+                  apis:           routes_array,
                   info:           @@documentation_class.parse_info(extra_info)
                 }
 
@@ -535,14 +419,10 @@ module Grape
                 header['Access-Control-Request-Method'] = '*'
 
                 models = []
-                routes = target_class.combined_namespace_routes[params[:name]]
+                routes = target_class.combined_routes[params[:name]]
                 error!('Not Found', 404) unless routes
 
-                visible_ops = routes.reject do |route|
-                  route.route_hidden.respond_to?(:call) ? route.route_hidden.call : route.route_hidden
-                end
-
-                ops = visible_ops.group_by do |route|
+                ops = routes.reject(&:route_hidden).group_by do |route|
                   @@documentation_class.parse_path(route.route_path, api_version)
                 end
 
@@ -558,7 +438,7 @@ module Grape
 
                     models |= @@models if @@models.present?
 
-                    models |= Array(route.route_entity) if route.route_entity.present?
+                    models |= [route.route_entity] if route.route_entity.present?
 
                     models = @@documentation_class.models_with_included_presenters(models.flatten.compact)
 
@@ -577,7 +457,7 @@ module Grape
                     operation.merge!(responseMessages: http_codes) unless http_codes.empty?
 
                     if route.route_entity
-                      type = @@documentation_class.parse_entity_name(Array(route.route_entity).first)
+                      type = @@documentation_class.parse_entity_name(route.route_entity)
                       operation.merge!('type' => type)
                     end
 
@@ -590,16 +470,10 @@ module Grape
                   }
                 end
 
-                # use custom resource naming if available
-                if target_class.combined_namespace_identifiers.key? params[:name]
-                  resource_path = target_class.combined_namespace_identifiers[params[:name]]
-                else
-                  resource_path = params[:name]
-                end
                 api_description = {
                   apiVersion:     api_version,
                   swaggerVersion: '1.2',
-                  resourcePath:   "/#{resource_path}",
+                  resourcePath:   "/#{params[:name]}",
                   produces:       @@documentation_class.content_types_for(target_class),
                   apis:           apis
                 }

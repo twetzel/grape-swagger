@@ -1,6 +1,7 @@
 require 'spec_helper'
 
 describe GrapeSwagger::Markdown::RedcarpetAdapter, unless: RUBY_PLATFORM.eql?('java') do
+
   context 'initialization' do
     context 'initialization' do
       it 'uses fenced_code_blocks, auto_links and rouge as default.' do

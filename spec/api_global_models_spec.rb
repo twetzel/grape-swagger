@@ -1,6 +1,7 @@
 require 'spec_helper'
 
 describe 'Global Models' do
+
   before :all do
     module Entities
       module Some
@@ -73,5 +74,6 @@ describe 'Global Models' do
                                       'created_at' => { 'type' => 'dateTime', 'description' => 'Creation of something.' }
                                     }
                                   })
+
   end
 end

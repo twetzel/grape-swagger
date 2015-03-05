@@ -3,6 +3,7 @@ require 'spec_helper'
 describe 'options: ' do
   context 'overriding the basepath' do
     before :all do
+
       class BasePathMountedApi < Grape::API
         desc 'This gets something.'
         get '/something' do
@@ -16,6 +17,7 @@ describe 'options: ' do
         mount BasePathMountedApi
         add_swagger_documentation base_path: NON_DEFAULT_BASE_PATH
       end
+
     end
 
     def app
@@ -252,6 +254,7 @@ describe 'options: ' do
         mount HideDocumentationPathPrefixedMountedApi
         add_swagger_documentation hide_documentation_path: true
       end
+
     end
 
     def app
@@ -283,6 +286,7 @@ describe 'options: ' do
         }]
       )
     end
+
   end
 
   context 'overriding hiding the documentation paths in prefixed and versioned API' do
@@ -334,6 +338,7 @@ describe 'options: ' do
         }]
       )
     end
+
   end
 
   context 'overriding the mount-path' do

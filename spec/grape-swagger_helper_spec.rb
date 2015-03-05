@@ -1,6 +1,7 @@
 require 'spec_helper'
 
 describe 'helpers' do
+
   before :all do
     class HelperTestAPI < Grape::API
     end
@@ -58,25 +59,7 @@ describe 'helpers' do
           allowMultiple: false
         }
       ]
-    end
 
-    it 'parses symbol param as string' do
-      params = {
-        animal: { type: 'Symbol', desc: 'An animal you like', required: true, values: [:cat, :dog] }
-      }
-      path = '/coolness'
-      method = 'POST'
-      expect(subject.parse_params(params, path, method)).to eq [
-        {
-          paramType: 'form',
-          name: :animal,
-          description: 'An animal you like',
-          type: 'string',
-          required: true,
-          allowMultiple: false,
-          enum: [:cat, :dog]
-        }
-      ]
     end
 
     context 'custom type' do
@@ -95,6 +78,7 @@ describe 'helpers' do
         ]
       end
     end
+
   end
 
   context 'parsing the path' do
@@ -136,4 +120,5 @@ describe 'helpers' do
       ]
     end
   end
+
 end

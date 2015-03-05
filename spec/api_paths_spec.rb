@@ -1,6 +1,7 @@
 require 'spec_helper'
 
 describe 'simple api with prefix' do
+
   before :all do
     class ApiWithPrefix < Grape::API
       prefix :api
@@ -15,6 +16,7 @@ describe 'simple api with prefix' do
       mount ApiWithPrefix
       add_swagger_documentation
     end
+
   end
 
   def app
@@ -61,4 +63,5 @@ describe 'simple api with prefix' do
       )
     end
   end
+
 end

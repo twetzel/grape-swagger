@@ -14,13 +14,6 @@ describe 'a hide mounted api' do
       get '/hide' do
         { foo: 'bar' }
       end
-
-      desc 'Lazily show endpoint',
-           hidden: -> { false }
-
-      get '/lazy' do
-        { foo: 'bar' }
-      end
     end
 
     class HideApi < Grape::API
@@ -46,7 +39,6 @@ describe 'a hide mounted api' do
       'produces' => Grape::ContentTypes::CONTENT_TYPES.values.uniq,
       'apis' => [
         { 'path' => '/simple.{format}', 'description' => 'Operations about simples' },
-        { 'path' => '/lazy.{format}', 'description' => 'Operations about lazies' },
         { 'path' => '/swagger_doc.{format}', 'description' => 'Operations about swagger_docs' }
       ]
     )
@@ -65,13 +57,6 @@ describe 'a hide mounted api with same namespace' do
            hidden: true
 
       get '/simple/hide' do
-        { foo: 'bar' }
-      end
-
-      desc 'Lazily hide endpoint',
-           hidden: -> { true }
-
-      get '/simple/lazy' do
         { foo: 'bar' }
       end
     end
