@@ -19,17 +19,27 @@ module Grape
         @combined_routes = {}
         routes.each do |route|
           route_path = route.route_path
+          # puts "= = = = = = = = = = = ="
+          # puts "1:  #{ route_path }"
           route_match = route_path.split(/^.*?#{route.route_prefix.to_s}/).last
+          # puts "2: #{ route_match }"
           next unless route_match
           route_match = route_match.match('\/([\w|-]*?)[\.\/\(]') || route_match.match('\/([\w|-]*)$')
+          # puts "3: #{ route_match }"
           next unless route_match
           resource = route_match.captures.first
+          # puts "4: #{ resource }"
           next if resource.empty?
           resource.downcase!
           @combined_routes[resource] ||= []
+          # puts "hide: #{ documentation_class.hide_documentation_path }"
+          # puts "root: #{ route.route_path.include?(documentation_class.mount_path) }"
+          
           next if documentation_class.hide_documentation_path && route.route_path.include?(documentation_class.mount_path)
           @combined_routes[resource] << route
         end
+        
+        # puts "routes: #{ @combined_routes.to_yaml }"
 
         @combined_namespaces = {}
         combine_namespaces(self)
@@ -39,6 +49,11 @@ module Grape
         combine_namespace_routes(@combined_namespaces)
 
         exclusive_route_keys = @combined_routes.keys - @combined_namespaces.keys
+        
+        # puts "*************************"
+        # puts exclusive_route_keys
+        # puts "*************************"
+        
         exclusive_route_keys.each { |key| @combined_namespace_routes[key] = @combined_routes[key] }
         documentation_class
       end
